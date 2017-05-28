@@ -1,0 +1,14 @@
+hash: 780db88ee4f8ce099ab7a0cb2ea4e4f0e260fe4f736d26f6340aa5406414954c
+updated: 2017-05-27T23:22:35.502873393+01:00
+imports:
+- name: github.com/gorilla/websocket
+  version: 3ab3a8b8831546bd18fd182c20687ca853b2bb13
+- name: github.com/preichenberger/go-coinbase-exchange
+  version: bfd2b74f1f0cc9a07e4e543bdbfa7711e0e24f0e
+- name: github.com/sirupsen/logrus
+  version: 5e5dc898656f695e2a086b8e12559febbfc01562
+- name: golang.org/x/sys
+  version: 002cbb5f952456d0c50e0d2aff17ea5eca716979
+  subpackages:
+  - unix
+testImports: []
