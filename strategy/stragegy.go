@@ -18,5 +18,5 @@ const (
 
 // Strategy -
 type Strategy interface {
-	Handle(candle *market.Candle) (Action, error)
+	Handle(candle *market.Trade) (Action, error)
 }

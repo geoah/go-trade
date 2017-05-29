@@ -2,34 +2,43 @@ package fake
 
 import (
 	"errors"
-	"sort"
+	"fmt"
 	"sync"
+	"time"
 
 	market "github.com/geoah/go-trade/market"
+	persistence "github.com/geoah/go-trade/persistence"
+)
+
+const (
+	Name = "fake"
 )
 
 type Fake struct {
 	sync.Mutex
-	handlers []market.Handler
-	candles  []*market.Candle
-	asset    float64
-	currency float64
+	persistence persistence.Persistence
+	handlers    []market.TradeHandler
+	asset       float64
+	currency    float64
+	back        time.Duration
+	marketName  string
+	productName string
 }
 
-func New(candles []*market.Candle, asset, currency float64) (market.Market, error) {
+func New(pe persistence.Persistence, mrk, prd string, back time.Duration, asset, currency float64) (market.Market, error) {
 	m := &Fake{
-		handlers: []market.Handler{},
-		candles:  candles,
-		asset:    asset,
-		currency: currency,
+		handlers:    []market.TradeHandler{},
+		asset:       asset,
+		currency:    currency,
+		persistence: pe,
+		back:        back,
+		marketName:  mrk,
+		productName: prd,
 	}
-	sort.Slice(m.candles, func(i, j int) bool {
-		return m.candles[i].Time.Before(m.candles[j].Time)
-	})
 	return m, nil
 }
 
-func (m *Fake) Notify(handler market.Handler) {
+func (m *Fake) Notify(handler market.TradeHandler) {
 	m.handlers = append(m.handlers, handler)
 }
 
@@ -63,11 +72,28 @@ func (m *Fake) GetBalance() (assets float64, currency float64, err error) {
 }
 
 func (m *Fake) Run() {
-	for i := range m.candles {
+	end := time.Now()
+	start := end.Add(-m.back)
+	// TODO make this async and send smaller batches
+	trades, err := m.persistence.GetTrades(m.marketName, m.productName, start, end)
+	if err != nil {
+		fmt.Println("Could not get trades", err)
+		return
+	}
+	if len(trades) == 0 {
+		fmt.Println("No trades for the given duration, you might want to backfill first.")
+		fmt.Println("eg. go-trade backfill --days 5")
+		return
+	}
+	for _, trade := range trades {
 		for _, h := range m.handlers {
 			if h != nil {
-				h(m.candles[i])
+				h(trade)
 			}
 		}
 	}
+}
+
+func (m *Fake) Backfill(end time.Time) error {
+	return errors.New("Not implemented")
 }

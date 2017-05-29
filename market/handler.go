@@ -1,4 +1,7 @@
 package market
 
-// Handler -
-type Handler func(candle *Candle) error
+// CandleHandler -
+type CandleHandler func(candle *Candle) error
+
+// TradeHandler -
+type TradeHandler func(trade *Trade) error

@@ -32,7 +32,7 @@ func New(waitChance, buyChance, sellChance float64) (strategy.Strategy, error) {
 }
 
 // Handle new candle
-func (s *random) Handle(candle *market.Candle) (strategy.Action, error) {
+func (s *random) Handle(candle *market.Trade) (strategy.Action, error) {
 	r := rand.Float64()
 	if r <= s.buyChance {
 		return strategy.Buy, nil
