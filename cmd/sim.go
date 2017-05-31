@@ -36,7 +36,7 @@ func sim(cmd *cobra.Command, args []string) {
 	var err error
 
 	// setup strategy
-	strategy, err = simple.New(2000)
+	strategy, err = simple.New(emaWindow)
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup strategy")
 	}
@@ -44,13 +44,13 @@ func sim(cmd *cobra.Command, args []string) {
 	// setup fake market
 	market, err = fake.New(persistence, gdax.Name, productName, simLast, simAssetCapital, simCurrencyCapital)
 	log.
-		WithField("AST", simAssetCapital).
-		WithField("CUR", simCurrencyCapital).
+		WithField("balance-assets", simAssetCapital).
+		WithField("balance-currency", simCurrencyCapital).
 		Info("Started market")
 
 	// setup aggregator
 	// aggregator, err := agr.NewTimeAggregator(1 * time.Minute)
-	aggregator, err := agr.NewVolumeAggregator(100)
+	aggregator, err := agr.NewVolumeAggregator(aggregationVolumeLimit)
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup aggregator")
 	}
@@ -64,6 +64,11 @@ func sim(cmd *cobra.Command, args []string) {
 	// attach handlers
 	market.Register(aggregator)
 	aggregator.Register(trader)
+
+	log.
+		WithField("ema-window", emaWindow).
+		WithField("aggregation-volume-limit", aggregationVolumeLimit).
+		Infof("Started trading")
 
 	// start market
 	market.Run()

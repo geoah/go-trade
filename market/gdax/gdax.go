@@ -9,8 +9,11 @@ import (
 	ws "github.com/gorilla/websocket"
 	exchange "github.com/preichenberger/go-coinbase-exchange"
 
+	"strings"
+
 	market "github.com/geoah/go-trade/market"
 	persistence "github.com/geoah/go-trade/persistence"
+	"github.com/geoah/go-trade/utils"
 )
 
 const (
@@ -24,6 +27,10 @@ type gdax struct {
 	handlers    []market.TradeHandler
 	client      *exchange.Client
 	persistence persistence.Persistence
+
+	balanceCacheValid    bool
+	balanceCacheAsset    float64
+	balanceCacheCurrency float64
 }
 
 // New gdax market
@@ -32,8 +39,10 @@ func New(persistence persistence.Persistence, product string) (market.Market, er
 	key := os.Getenv("COINBASE_KEY")
 	passphrase := os.Getenv("COINBASE_PASSPHRASE")
 
+	// TODO Validate product for market
+
 	mrk := &gdax{
-		product:     product,
+		product:     strings.ToUpper(product),
 		handlers:    []market.TradeHandler{},
 		client:      exchange.NewClient(secret, key, passphrase),
 		persistence: persistence,
@@ -82,24 +91,80 @@ func (m *gdax) Listen() {
 	}
 }
 
+func (m *gdax) asset() string {
+	return strings.ToUpper(strings.Split(m.product, "-")[0])
+}
+
+func (m *gdax) currency() string {
+	return strings.ToUpper(strings.Split(m.product, "-")[1])
+}
+
 // Notify -
 func (m *gdax) Register(handler market.TradeHandler) {
 	m.handlers = append(m.handlers, handler)
 }
 
 // Buy -
-func (m *gdax) Buy(quantity, price float64) error {
+func (m *gdax) Buy(size, price float64) error {
+	order := &exchange.Order{
+		Price:     price,
+		Size:      size,
+		Side:      "buy",
+		ProductId: m.product,
+		PostOnly:  true,
+	}
+	savedOrder, err := m.client.CreateOrder(order)
+	if err != nil {
+		return err
+	}
+	fmt.Println("savedOrder", savedOrder)
+	m.balanceCacheValid = false
 	return errors.New("Not implemented")
 }
 
 // Sell -
-func (m *gdax) Sell(quantity, price float64) error {
+func (m *gdax) Sell(size, price float64) error {
+	order := &exchange.Order{
+		Price:     price,
+		Size:      size,
+		Side:      "sell",
+		ProductId: m.product,
+		PostOnly:  true,
+	}
+	savedOrder, err := m.client.CreateOrder(order)
+	if err != nil {
+		return err
+	}
+	fmt.Println("savedOrder", savedOrder)
+	m.balanceCacheValid = false
 	return errors.New("Not implemented")
 }
 
 // GetBalance -
 func (m *gdax) GetBalance() (assets float64, currency float64, err error) {
-	return 0, 0, errors.New("Not implemented")
+	if m.balanceCacheValid {
+		return m.balanceCacheAsset, m.balanceCacheCurrency, nil
+	}
+	acs, err := m.client.GetAccounts()
+	if err != nil {
+		return 0, 0, err
+	}
+	cast := m.asset()
+	ccur := m.currency()
+	ast := 0.0
+	cur := 0.0
+	for _, acc := range acs {
+		switch acc.Currency {
+		case cast:
+			ast = utils.TrimFloat64(acc.Available, 6)
+		case ccur:
+			cur = utils.TrimFloat64(acc.Available, 2)
+		}
+	}
+	m.balanceCacheAsset = ast
+	m.balanceCacheCurrency = cur
+	m.balanceCacheValid = true
+	return ast, cur, nil
 }
 
 // Run -

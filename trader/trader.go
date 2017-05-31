@@ -1,15 +1,13 @@
 package trader
 
 import (
+	"math/rand"
+
 	"github.com/Sirupsen/logrus"
 
 	market "github.com/geoah/go-trade/market"
 	strategy "github.com/geoah/go-trade/strategy"
 	utils "github.com/geoah/go-trade/utils"
-)
-
-var (
-	log = logrus.New()
 )
 
 // Trader -
@@ -35,23 +33,25 @@ func New(market market.Market, strategy strategy.Strategy) (*Trader, error) {
 
 // Handle new candle
 func (t *Trader) Handle(candle *market.Candle) error {
+	logrus.WithField("candle", candle).Debug("Handling candle")
 	// TODO Lock simple? Not sure what for
 	if t.firstPriceSeen == 0.0 {
 		t.firstPriceSeen = candle.Close
 	}
 	action, err := t.strategy.Handle(candle)
 	if err != nil {
-		log.WithError(err).Fatalf("Strategy could not handle trade")
+		logrus.WithError(err).Fatalf("Strategy could not handle trade")
 	}
+	// fmt.Println(candle)
 	act := "Holding"
 	// TODO random quantity to buy/sell is not clever, move to strategy
 	qnt := 0.0
 	switch action {
 	case strategy.Wait:
-		log.Debugf("Strategy says wait")
+		logrus.Debugf("Strategy says wait")
 		return nil
 	case strategy.Buy:
-		log.Debugf("Strategy says buy")
+		logrus.Debugf("Strategy says buy")
 		act = "Bought"
 		// get market price
 		prc := candle.Close
@@ -60,58 +60,57 @@ func (t *Trader) Handle(candle *market.Candle) error {
 		// max assets we can buy
 		mas := cur / prc
 		// make sure we have enough currency to buy with
-		if utils.RoundFloat64(mas, 5) == 0 {
+		if utils.TrimFloat64(mas, 5) == 0 {
 			// nevermind
 			return nil
 		}
 		// random quantity of assets to buy
 		qnt = randomUpTo(mas)
-		// round quantity
-		if utils.RoundFloat64(qnt, 5) == utils.RoundFloat64(mas, 5) {
-			qnt = mas
+		if qnt == 0.0 {
+			// logrus.Infof("Nil quantity")
+			return nil
 		}
-
+		// adjust price to appear as a maker
+		// TODO base this on the ema diff?
+		prc = prc / 1.0009
 		// buy assets
-		log.Debugf("Trying to buy %0.2f at %0.2f", qnt, prc)
+		logrus.Infof("Trying to buy %0.4f at %0.4f", qnt, prc)
 		err = t.market.Buy(qnt, prc)
 		if err != nil {
-			log.WithError(err).Warnf("Could not buy assets")
+			logrus.WithError(err).Warnf("Could not buy assets")
 			return nil
 		}
 	case strategy.Sell:
-		log.Debugf("Strategy says sell")
+		logrus.Debugf("Strategy says sell")
 		act = "Sold"
 		// get market price
 		prc := candle.Close
 		// max assets we can sell
 		ast, _, _ := t.market.GetBalance()
 		mas := ast
-		// make sure we have enough assets to sell
-		if utils.RoundFloat64(mas, 5) == 0 {
-			// nevermind
-			return nil
-		} // random quantity of assets to sell
 		qnt = randomUpTo(mas)
-		// round qantity
-		if utils.RoundFloat64(qnt, 5) == utils.RoundFloat64(mas, 5) {
-			qnt = mas
+		if qnt == 0.0 {
+			// logrus.Infof("Nil quantity")
+			return nil
 		}
-
+		// adjust price to appear as a maker
+		// TODO base this on the ema diff?
+		prc = prc * 1.0009
 		// sell assets
-		log.Debugf("Trying to sell %0.2f at %0.2f", qnt, prc)
+		logrus.Infof("Trying to sell %0.4f at %0.4f", qnt, prc)
 		err = t.market.Sell(qnt, prc)
 		if err != nil {
-			log.WithError(err).Warnf("Could not sell assets")
+			logrus.WithError(err).Warnf("Could not sell assets")
 			return nil
 		}
 	default:
-		log.WithField("action", action).Fatalf("Strategy said something weird")
+		logrus.WithField("action", action).Fatalf("Strategy said something weird")
 	}
 
 	// log new balance
 	ast, cur, err := t.market.GetBalance()
 	if err != nil {
-		log.WithError(err).Warnf("Could not get balance")
+		logrus.WithError(err).Warnf("Could not get balance")
 	}
 	// current price
 	prc := candle.Close
@@ -126,20 +125,30 @@ func (t *Trader) Handle(candle *market.Candle) error {
 	// current assets
 	catl := ast + cur/prc
 
-	log.
+	logrus.
 		WithField("ACT", act).
-		WithField("QNT", utils.RoundFloat64(qnt, 5)).
-		WithField("PRC", utils.RoundFloat64(prc, 5)).
-		WithField("AST", utils.RoundFloat64(ast, 5)).
-		WithField("CUR", utils.RoundFloat64(cur, 5)).
-		WithField("CUR%", utils.RoundFloat64(ctl*100/itl-100, 3)).
-		WithField("AST%", utils.RoundFloat64(catl*100/iatl-100, 3)).
+		WithField("QNT", utils.TrimFloat64(qnt, 5)).
+		WithField("PRC", utils.TrimFloat64(prc, 5)).
+		WithField("AST", utils.TrimFloat64(ast, 5)).
+		WithField("CUR", utils.TrimFloat64(cur, 5)).
+		WithField("CUR%", utils.TrimFloat64(ctl*100/itl-100, 3)).
+		WithField("AST%", utils.TrimFloat64(catl*100/iatl-100, 3)).
 		Infof(candle.Time.UTC().Format("2006-01-02 15:04:05"))
 	return nil
 }
 
 // TODO this should not be random, maybe part of the strategy
 func randomUpTo(max float64) float64 {
-	return max
-	// return (rand.Float64() * max)
+	// minimum trades
+	// TODO Make configurable
+	if max < 0.01 {
+		return 0
+	}
+	// return max
+	mas := utils.TrimFloat64(rand.Float64()*utils.TrimFloat64(max, 4), 4)
+	if mas < 0.01 {
+		return 0
+	}
+	// return mas
+	return mas
 }

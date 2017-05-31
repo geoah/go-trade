@@ -16,4 +16,6 @@ type Candle struct {
 	Close float64 `json:"Close"`
 	// Volume of trading activity
 	Volume float64 `json:"Volume"`
+	// Historic -
+	Historic bool `json:"-"`
 }

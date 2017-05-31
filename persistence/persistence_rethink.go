@@ -3,8 +3,9 @@ package persistence
 import (
 	"time"
 
-	"github.com/geoah/go-trade/market"
 	r "gopkg.in/gorethink/gorethink.v3"
+
+	market "github.com/geoah/go-trade/market"
 )
 
 const (
@@ -55,6 +56,9 @@ func (p *rethinkdb) GetTrades(mrk, prd string, start, end time.Time) ([]*market.
 	trades := []*market.Trade{}
 	if err := cur.All(&trades); err != nil {
 		return nil, err
+	}
+	for _, trade := range trades {
+		trade.Historic = true
 	}
 	return trades, nil
 }

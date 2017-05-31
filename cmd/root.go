@@ -20,8 +20,11 @@ var (
 	log     *logrus.Logger
 	cfgFile string
 
-	marketName  string
-	productName string
+	marketName             string
+	productName            string
+	logLevel               string
+	emaWindow              float64
+	aggregationVolumeLimit float64
 
 	persistence per.Persistence
 	market      mrk.Market
@@ -54,11 +57,15 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.go-trade.yaml)")
-	RootCmd.PersistentFlags().StringVar(&productName, "product", "BTC-USD", "product name (default is BTC-USD)")
+	RootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "log level [debug/info/warn/error")
+
+	RootCmd.PersistentFlags().StringVar(&productName, "product", "BTC-USD", "product name")
+	RootCmd.PersistentFlags().Float64Var(&emaWindow, "ema-window", 100, "EMA window")
+	RootCmd.PersistentFlags().Float64Var(&aggregationVolumeLimit, "aggregation-volume", 0.5, "Volume aggregation")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -98,6 +105,12 @@ func setup() {
 	if err != nil {
 		log.WithError(err).Fatalf("Could not connect to rethinkdb")
 	}
+
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	logrus.SetLevel(level)
 
 	rDB := "trade"
 
