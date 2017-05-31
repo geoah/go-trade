@@ -2,15 +2,23 @@ package aggregator
 
 import (
 	"sort"
+	"time"
 
-	"github.com/geoah/go-trade/market"
+	"github.com/Sirupsen/logrus"
 	"github.com/thetruetrade/gotrade"
+
+	market "github.com/geoah/go-trade/market"
+)
+
+var (
+	timeNil = time.Unix(0, 0)
 )
 
 // Volume -
 type Volume struct {
 	volumeLimit   float64
 	volumeCurrent float64
+	volumeReset   time.Time
 
 	trades []*market.Trade
 
@@ -24,6 +32,7 @@ type Volume struct {
 func NewVolumeAggregator(volume float64) (Aggregator, error) {
 	agg := &Volume{
 		volumeLimit: volume,
+		volumeReset: timeNil,
 		handlers:    []market.CandleHandler{},
 	}
 	return agg, nil
@@ -31,6 +40,9 @@ func NewVolumeAggregator(volume float64) (Aggregator, error) {
 
 // Handle -
 func (a *Volume) Handle(trade *market.Trade) error {
+	if a.volumeReset == timeNil {
+		a.volumeReset = trade.Time
+	}
 	a.volumeCurrent += trade.Size
 	a.trades = append(a.trades, trade)
 	if a.volumeCurrent >= a.volumeLimit {
@@ -68,6 +80,13 @@ func (a *Volume) tick(trade *market.Trade) {
 
 	// clear trades
 	a.trades = []*market.Trade{}
+	// log time
+	diff := trade.Time.Sub(a.volumeReset)
+	logrus.WithField("second", diff.Seconds()).WithField("volume", a.volumeLimit).Debugf("Volume filled")
+	// reset time
+	a.volumeReset = trade.Time
+	// reset volume
+	a.volumeCurrent = 0
 }
 
 // Register -
