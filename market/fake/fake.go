@@ -38,7 +38,7 @@ func New(pe persistence.Persistence, mrk, prd string, back time.Duration, asset,
 	return m, nil
 }
 
-func (m *Fake) Notify(handler market.TradeHandler) {
+func (m *Fake) Register(handler market.TradeHandler) {
 	m.handlers = append(m.handlers, handler)
 }
 
@@ -88,7 +88,7 @@ func (m *Fake) Run() {
 	for _, trade := range trades {
 		for _, h := range m.handlers {
 			if h != nil {
-				h(trade)
+				h.Handle(trade) // TODO Handle error
 			}
 		}
 	}

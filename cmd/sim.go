@@ -3,10 +3,13 @@ package cmd
 import (
 	"time"
 
-	"github.com/geoah/go-trade/market/fake"
-	"github.com/geoah/go-trade/market/gdax"
-	"github.com/geoah/go-trade/strategy/random"
 	"github.com/spf13/cobra"
+
+	agr "github.com/geoah/go-trade/aggregator"
+	fake "github.com/geoah/go-trade/market/fake"
+	gdax "github.com/geoah/go-trade/market/gdax"
+	simple "github.com/geoah/go-trade/strategy/simple"
+	trd "github.com/geoah/go-trade/trader"
 )
 
 var (
@@ -33,16 +36,34 @@ func sim(cmd *cobra.Command, args []string) {
 	var err error
 
 	// setup strategy
-	strategy, err = random.New(0.7, 0.15, 0.15)
+	strategy, err = simple.New(2000)
 	if err != nil {
-		log.WithError(err).Fatalf("Could not create strategy")
+		log.WithError(err).Fatalf("Could not setup strategy")
 	}
 
 	// setup fake market
 	market, err = fake.New(persistence, gdax.Name, productName, simLast, simAssetCapital, simCurrencyCapital)
+	log.
+		WithField("AST", simAssetCapital).
+		WithField("CUR", simCurrencyCapital).
+		Info("Started market")
 
-	// attach handler
-	market.Notify(handler)
+	// setup aggregator
+	// aggregator, err := agr.NewTimeAggregator(1 * time.Minute)
+	aggregator, err := agr.NewVolumeAggregator(100)
+	if err != nil {
+		log.WithError(err).Fatalf("Could not setup aggregator")
+	}
+
+	// setup trader
+	trader, err = trd.New(market, strategy)
+	if err != nil {
+		log.WithError(err).Fatalf("Could not setup trader")
+	}
+
+	// attach handlers
+	market.Register(aggregator)
+	aggregator.Register(trader)
 
 	// start market
 	market.Run()

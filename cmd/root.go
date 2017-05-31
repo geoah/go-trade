@@ -13,6 +13,7 @@ import (
 	mrk "github.com/geoah/go-trade/market"
 	per "github.com/geoah/go-trade/persistence"
 	str "github.com/geoah/go-trade/strategy"
+	trd "github.com/geoah/go-trade/trader"
 )
 
 var (
@@ -25,6 +26,7 @@ var (
 	persistence per.Persistence
 	market      mrk.Market
 	strategy    str.Strategy
+	trader      *trd.Trader
 )
 
 // RootCmd represents the base command when called without any subcommands

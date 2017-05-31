@@ -1,8 +1,10 @@
-hash: 4fcaee7094aa48244271d91c7167fa7c7041daaf9e705dbddd585b0c060be223
-updated: 2017-05-29T02:24:15.040747643+01:00
+hash: c3406e3f24c0de545af0602d1a2234a888e29ba3462fb3d7b8ae308c7dad2919
+updated: 2017-05-30T12:55:18.169925803+01:00
 imports:
 - name: github.com/cenkalti/backoff
   version: 32cd0c5b3aef12c76ed64aaf678f6c79736be7dc
+- name: github.com/fsnotify/fsnotify
+  version: 4da3e2cfbabc9f751898f250b49f2439785783a1
 - name: github.com/golang/protobuf
   version: 8616e8ee5e20a1704615e6c8d7afcdac06087a67
   subpackages:
@@ -11,14 +13,55 @@ imports:
   version: 3ab3a8b8831546bd18fd182c20687ca853b2bb13
 - name: github.com/hailocab/go-hostpool
   version: e80d13ce29ede4452c43dea11e79b9bc8a15b478
+- name: github.com/hashicorp/hcl
+  version: d8c773c4cba11b11539e3d45f93daeaa5dcf1fa1
+  subpackages:
+  - hcl/ast
+  - hcl/parser
+  - hcl/scanner
+  - hcl/strconv
+  - hcl/token
+  - json/parser
+  - json/scanner
+  - json/token
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jessevdk/go-flags
   version: 48cf8722c3375517aba351d1f7577c40663a4407
+- name: github.com/magiconair/properties
+  version: 51463bfca2576e06c62a8504b5c0f06d61312647
+- name: github.com/mitchellh/go-homedir
+  version: b8bc1bf767474819792c23f32d8286a45736f1c6
+- name: github.com/mitchellh/mapstructure
+  version: 53818660ed4955e899c0bcafa97299a388bd7c8e
+- name: github.com/pelletier/go-buffruneio
+  version: c37440a7cf42ac63b919c752ca73a85067e05992
+- name: github.com/pelletier/go-toml
+  version: 048765b4491bcff26505dfbb8a7b920133a19fd2
 - name: github.com/preichenberger/go-coinbase-exchange
   version: bfd2b74f1f0cc9a07e4e543bdbfa7711e0e24f0e
 - name: github.com/Sirupsen/logrus
   version: 5e5dc898656f695e2a086b8e12559febbfc01562
+- name: github.com/spf13/afero
+  version: 9be650865eab0c12963d8753212f4f9c66cdcf12
+  subpackages:
+  - mem
+- name: github.com/spf13/cast
+  version: acbeb36b902d72a7a4c18e8f3241075e7ab763e4
 - name: github.com/spf13/cobra
   version: ca57f0f5dba473a8a58765d16d7e811fb8027add
+- name: github.com/spf13/jwalterweatherman
+  version: 0efa5202c04663c757d84f90f5219c1250baf94f
+- name: github.com/spf13/pflag
+  version: e57e3eeb33f795204c1ca35f56c44f83227c6e66
+- name: github.com/spf13/viper
+  version: 0967fc9aceab2ce9da34061253ac10fb99bba5b2
+- name: github.com/thetruetrade/gotrade
+  version: 08b7c41e93d91276f0a4014dfdd20a23fd63db31
+  subpackages:
+  - indicators
+- name: github.com/VividCortex/ewma
+  version: c595cd886c223c6c28fc9ae2727a61b5e4693d85
 - name: golang.org/x/crypto
   version: 7e9105388ebff089b3f99f0ef676ea55a6da3a7e
   subpackages:
@@ -27,6 +70,11 @@ imports:
   version: 002cbb5f952456d0c50e0d2aff17ea5eca716979
   subpackages:
   - unix
+- name: golang.org/x/text
+  version: 2910a502d2bf9e43193af9d68ca516529614eed3
+  subpackages:
+  - transform
+  - unicode/norm
 - name: gopkg.in/fatih/pool.v2
   version: 6e328e67893eb46323ad06f0e92cb9536babbabc
 - name: gopkg.in/gorethink/gorethink.v3
@@ -35,4 +83,6 @@ imports:
   - encoding
   - ql2
   - types
+- name: gopkg.in/yaml.v2
+  version: a5b47d31c556af34a302ce5d659e6fea44d90de0
 testImports: []

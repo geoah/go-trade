@@ -75,7 +75,7 @@ func (m *gdax) Listen() {
 			// TODO move to channels
 			for _, h := range m.handlers {
 				if h != nil {
-					h(c)
+					h.Handle(c) // TODO Handle error
 				}
 			}
 		}
@@ -83,7 +83,7 @@ func (m *gdax) Listen() {
 }
 
 // Notify -
-func (m *gdax) Notify(handler market.TradeHandler) {
+func (m *gdax) Register(handler market.TradeHandler) {
 	m.handlers = append(m.handlers, handler)
 }
 

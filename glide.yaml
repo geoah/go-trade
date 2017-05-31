@@ -12,3 +12,5 @@ import:
 - package: github.com/jessevdk/go-flags
   version: ^1.2.0
 - package: github.com/spf13/cobra
+- package: github.com/VividCortex/ewma
+  version: ^1.0.0

@@ -1,7 +1,13 @@
 package strategy
 
 import (
+	"errors"
+
 	market "github.com/geoah/go-trade/market"
+)
+
+var (
+	ErrorNotImplemented = errors.New("Not implemeneted")
 )
 
 // Action -
@@ -18,5 +24,5 @@ const (
 
 // Strategy -
 type Strategy interface {
-	Handle(candle *market.Trade) (Action, error)
+	Handle(candle *market.Candle) (Action, error)
 }
