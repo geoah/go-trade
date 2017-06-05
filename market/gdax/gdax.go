@@ -1,19 +1,22 @@
 package gdax
 
 import (
-	"errors"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
+	logrus "github.com/Sirupsen/logrus"
 	ws "github.com/gorilla/websocket"
 	exchange "github.com/preichenberger/go-coinbase-exchange"
 
-	"strings"
-
 	market "github.com/geoah/go-trade/market"
 	persistence "github.com/geoah/go-trade/persistence"
-	"github.com/geoah/go-trade/utils"
+	utils "github.com/geoah/go-trade/utils"
 )
 
 const (
@@ -27,6 +30,10 @@ type gdax struct {
 	handlers    []market.TradeHandler
 	client      *exchange.Client
 	persistence persistence.Persistence
+
+	secret     string
+	key        string
+	passphrase string
 
 	balanceCacheValid    bool
 	balanceCacheAsset    float64
@@ -46,6 +53,9 @@ func New(persistence persistence.Persistence, product string) (market.Market, er
 		handlers:    []market.TradeHandler{},
 		client:      exchange.NewClient(secret, key, passphrase),
 		persistence: persistence,
+		secret:      secret,
+		key:         key,
+		passphrase:  passphrase,
 	}
 
 	return mrk, nil
@@ -57,20 +67,32 @@ func (m *gdax) Listen() {
 	if err != nil {
 		println(err.Error())
 	}
+
+	time.Sleep(time.Second)
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
+	signature, err := generateWebsocketSig(timestamp, m.secret)
+	if err != nil {
+		logrus.WithError(err).Fatalf("Could not subscribe to gdax ws")
+	}
 	subscribe := map[string]string{
 		"type":       "subscribe",
 		"product_id": m.product,
+		"signature":  signature,
+		"key":        m.key,
+		"passphrase": m.passphrase,
+		"timestamp":  timestamp,
 	}
 	if err := wsConn.WriteJSON(subscribe); err != nil {
 		println("gdax ws sub error", err.Error())
 	}
+
 	message := exchange.Message{}
 	for true {
 		if err := wsConn.ReadJSON(&message); err != nil {
-			println("gdax ws read error", err.Error())
+			logrus.WithError(err).Errorf("gdax ws read error")
 			break
 		}
-		if message.Type == "match" && message.Reason == "filled" {
+		if message.Type == "match" {
 			c := &market.Trade{
 				ID:      fmt.Sprintf("%s.%s.%d", Name, m.product, message.TradeId),
 				Market:  Name,
@@ -107,37 +129,39 @@ func (m *gdax) Register(handler market.TradeHandler) {
 // Buy -
 func (m *gdax) Buy(size, price float64) error {
 	order := &exchange.Order{
-		Price:     price,
-		Size:      size,
-		Side:      "buy",
-		ProductId: m.product,
-		PostOnly:  true,
+		Price:       price,
+		Size:        size,
+		Side:        "buy",
+		ProductId:   m.product,
+		PostOnly:    true, // TODO Maker
+		TimeInForce: "GTT",
+		CancelAfter: "min",
 	}
-	savedOrder, err := m.client.CreateOrder(order)
+	_, err := m.client.CreateOrder(order)
 	if err != nil {
 		return err
 	}
-	fmt.Println("savedOrder", savedOrder)
 	m.balanceCacheValid = false
-	return errors.New("Not implemented")
+	return nil
 }
 
 // Sell -
 func (m *gdax) Sell(size, price float64) error {
 	order := &exchange.Order{
-		Price:     price,
-		Size:      size,
-		Side:      "sell",
-		ProductId: m.product,
-		PostOnly:  true,
+		Price:       price,
+		Size:        size,
+		Side:        "sell",
+		ProductId:   m.product,
+		PostOnly:    true, // TODO Maker
+		TimeInForce: "GTT",
+		CancelAfter: "min",
 	}
-	savedOrder, err := m.client.CreateOrder(order)
+	_, err := m.client.CreateOrder(order)
 	if err != nil {
 		return err
 	}
-	fmt.Println("savedOrder", savedOrder)
 	m.balanceCacheValid = false
-	return errors.New("Not implemented")
+	return nil
 }
 
 // GetBalance -
@@ -163,13 +187,14 @@ func (m *gdax) GetBalance() (assets float64, currency float64, err error) {
 	}
 	m.balanceCacheAsset = ast
 	m.balanceCacheCurrency = cur
-	m.balanceCacheValid = true
 	return ast, cur, nil
 }
 
 // Run -
 func (m *gdax) Run() {
-	m.Listen()
+	for {
+		m.Listen()
+	}
 }
 
 func (m *gdax) Backfill(end time.Time) error {
@@ -200,4 +225,22 @@ func (m *gdax) Backfill(end time.Time) error {
 		}
 	}
 	return nil
+}
+
+func generateWebsocketSig(timestamp, secret string) (string, error) {
+	url := "/users/self"
+	message := fmt.Sprintf("%sGET%s", timestamp, url)
+
+	key, err := base64.StdEncoding.DecodeString(secret)
+	if err != nil {
+		return "", err
+	}
+
+	signature := hmac.New(sha256.New, key)
+	_, err = signature.Write([]byte(message))
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(signature.Sum(nil)), nil
 }
