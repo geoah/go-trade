@@ -8,6 +8,7 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 	cobra "github.com/spf13/cobra"
 	viper "github.com/spf13/viper"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	r "gopkg.in/gorethink/gorethink.v3"
 
 	mrk "github.com/geoah/go-trade/market"
@@ -97,6 +98,18 @@ func initConfig() {
 }
 
 func setup() {
+	logrus.SetFormatter(&prefixed.TextFormatter{
+		FullTimestamp:    true,
+		QuoteEmptyFields: false,
+		QuoteCharacter:   "",
+	})
+
+	level, err := logrus.ParseLevel(logLevel)
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	logrus.SetLevel(level)
+
 	log = logrus.New()
 
 	rs, err := r.Connect(r.ConnectOpts{
@@ -105,12 +118,6 @@ func setup() {
 	if err != nil {
 		log.WithError(err).Fatalf("Could not connect to rethinkdb")
 	}
-
-	level, err := logrus.ParseLevel(logLevel)
-	if err != nil {
-		level = logrus.InfoLevel
-	}
-	logrus.SetLevel(level)
 
 	rDB := "trade"
 
