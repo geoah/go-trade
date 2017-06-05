@@ -14,3 +14,6 @@ import:
 - package: github.com/spf13/cobra
 - package: github.com/VividCortex/ewma
   version: ^1.0.0
+- package: github.com/x-cray/logrus-prefixed-formatter
+  version: ^0.4.0
+- package: github.com/a-h/round

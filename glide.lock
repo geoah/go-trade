@@ -1,6 +1,8 @@
-hash: c3406e3f24c0de545af0602d1a2234a888e29ba3462fb3d7b8ae308c7dad2919
-updated: 2017-05-30T12:55:18.169925803+01:00
+hash: 68bb3ad0fa44570b27f33730af2d30750b62e92d6334f71d53b38d694adb5fa9
+updated: 2017-06-01T00:04:46.608247644+01:00
 imports:
+- name: github.com/a-h/round
+  version: 29d6cc75ad82cb7aee00b8789582c88ddb229e2a
 - name: github.com/cenkalti/backoff
   version: 32cd0c5b3aef12c76ed64aaf678f6c79736be7dc
 - name: github.com/fsnotify/fsnotify
@@ -30,6 +32,12 @@ imports:
   version: 48cf8722c3375517aba351d1f7577c40663a4407
 - name: github.com/magiconair/properties
   version: 51463bfca2576e06c62a8504b5c0f06d61312647
+- name: github.com/mattn/go-colorable
+  version: ded68f7a9561c023e790de24279db7ebf473ea80
+- name: github.com/mattn/go-isatty
+  version: fc9e8d8ef48496124e79ae0df75490096eccf6fe
+- name: github.com/mgutz/ansi
+  version: 9520e82c474b0a04dd04f8a40959027271bab992
 - name: github.com/mitchellh/go-homedir
   version: b8bc1bf767474819792c23f32d8286a45736f1c6
 - name: github.com/mitchellh/mapstructure
@@ -58,10 +66,10 @@ imports:
   version: 0967fc9aceab2ce9da34061253ac10fb99bba5b2
 - name: github.com/thetruetrade/gotrade
   version: 08b7c41e93d91276f0a4014dfdd20a23fd63db31
-  subpackages:
-  - indicators
 - name: github.com/VividCortex/ewma
-  version: c595cd886c223c6c28fc9ae2727a61b5e4693d85
+  version: 2f8aa9741ab4b5b80945c750b871131b88ef5b7f
+- name: github.com/x-cray/logrus-prefixed-formatter
+  version: 54b7cd10b359d569484cc6b6ffd21d4649dcd148
 - name: golang.org/x/crypto
   version: 7e9105388ebff089b3f99f0ef676ea55a6da3a7e
   subpackages:
