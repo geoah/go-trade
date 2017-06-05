@@ -1,14 +1,17 @@
 package simple
 
 import (
-	"github.com/VividCortex/ewma"
-	"github.com/geoah/go-trade/market"
-	"github.com/geoah/go-trade/strategy"
+	ewma "github.com/VividCortex/ewma"
+
+	market "github.com/geoah/go-trade/market"
+	strategy "github.com/geoah/go-trade/strategy"
 )
 
 type simple struct {
-	lastEMA float64
-	ema     ewma.MovingAverage
+	ema ewma.MovingAverage
+
+	lastEma     float64
+	lastEmaDiff float64
 }
 
 // New random strategy
@@ -20,20 +23,31 @@ func New(window float64) (strategy.Strategy, error) {
 
 // Handle new candle
 func (s *simple) Handle(candle *market.Candle) (strategy.Action, error) {
-	// TODO Lock simple
-
-	// find diff
+	// add candle to our ema
 	s.ema.Add(candle.Close)
-	newEMA := s.ema.Value()
-	diff := s.lastEMA - newEMA
-	s.lastEMA = newEMA
 
-	// report back
-	if diff > 0 {
-		return strategy.Buy, nil
-	} else if diff < 0 {
-		return strategy.Sell, nil
+	// save the ema in the candle
+	candle.Ema = s.ema.Value()
+
+	// set wait as fallback
+	act := strategy.Wait
+
+	// get the direction of the trend
+	diff := s.lastEma - candle.Ema
+
+	// if the direction has changed since our last tick
+	if diff > 0 && s.lastEmaDiff < 0 {
+		// from down to up, then buy
+		act = strategy.Buy
+	} else if diff < 0 && s.lastEmaDiff > 0 {
+		// from up to down, then sell
+		act = strategy.Sell
 	}
 
-	return strategy.Wait, nil
+	// store new ema and direction
+	s.lastEma = candle.Ema
+	s.lastEmaDiff = diff
+
+	// suggest action
+	return act, nil
 }

@@ -1,9 +1,16 @@
 package cmd
 
 import (
-	"github.com/spf13/cobra"
+	"encoding/json"
+	"io/ioutil"
+	"os"
+	"os/signal"
+	"time"
+
+	cobra "github.com/spf13/cobra"
 
 	agr "github.com/geoah/go-trade/aggregator"
+	mrk "github.com/geoah/go-trade/market"
 	gdax "github.com/geoah/go-trade/market/gdax"
 	simple "github.com/geoah/go-trade/strategy/simple"
 	trd "github.com/geoah/go-trade/trader"
@@ -50,7 +57,7 @@ func trade(cmd *cobra.Command, args []string) {
 	}
 
 	// setup trader
-	trader, err = trd.New(market, strategy)
+	trader, err = trd.New(market, strategy, 4, 2) // TODO Get precision from market
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup trader")
 	}
@@ -63,6 +70,29 @@ func trade(cmd *cobra.Command, args []string) {
 		WithField("ema-window", emaWindow).
 		WithField("aggregation-volume-limit", aggregationVolumeLimit).
 		Infof("Started trading")
+
+	started := time.Now().UTC()
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for sig := range c {
+			log.WithField("sig", sig).Infof("Interrupted")
+			now := time.Now()
+			data := []*mrk.Candle{}
+			for i, c := range trader.Candles {
+				if c.Ema > 0 && i > 10 {
+					c.Time = now
+					now = now.Add(5 * time.Minute)
+					data = append(data, c)
+				}
+			}
+			bs, _ := json.Marshal(data)
+			ioutil.WriteFile("data-trade-"+started.Format("2006-01-02T15:04:05Z")+".json", bs, 0644)
+			log.Warnf("Completed trade with %d actions", trader.Trades)
+			os.Exit(0)
+		}
+	}()
 
 	// start market
 	market.Run()
