@@ -16,6 +16,8 @@ var (
 
 // Volume -
 type Volume struct {
+	tradesMin     int
+	tradesMax     int
 	volumeLimit   float64
 	volumeCurrent float64
 	volumeReset   time.Time
@@ -32,6 +34,8 @@ type Volume struct {
 func NewVolumeAggregator(volume float64) (Aggregator, error) {
 	agg := &Volume{
 		volumeLimit: volume,
+		tradesMin:   1, // TODO Make configurable
+		tradesMax:   5, // TODO Make configurable
 		volumeReset: timeNil,
 		handlers:    []market.CandleHandler{},
 	}
@@ -45,7 +49,9 @@ func (a *Volume) Handle(trade *market.Trade) error {
 	}
 	a.volumeCurrent += trade.Size
 	a.trades = append(a.trades, trade)
-	if a.volumeCurrent >= a.volumeLimit {
+	if a.volumeCurrent >= a.volumeLimit && len(a.trades) > a.tradesMin {
+		a.tick(trade)
+	} else if len(a.trades) > a.tradesMax {
 		a.tick(trade)
 	}
 	return nil
@@ -78,13 +84,20 @@ func (a *Volume) tick(trade *market.Trade) {
 	// notify
 	a.notify(c)
 
+	// log stats
+	diff := trade.Time.Sub(a.volumeReset)
+	logrus.
+		WithField("second", diff.Seconds()).
+		WithField("volume", a.volumeLimit).
+		WithField("trades", len(a.trades)).
+		Debugf("Volume filled")
+
 	// clear trades
 	a.trades = []*market.Trade{}
-	// log time
-	diff := trade.Time.Sub(a.volumeReset)
-	logrus.WithField("second", diff.Seconds()).WithField("volume", a.volumeLimit).Debugf("Volume filled")
+
 	// reset time
 	a.volumeReset = trade.Time
+
 	// reset volume
 	a.volumeCurrent = 0
 }
