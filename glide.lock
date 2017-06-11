@@ -1,5 +1,5 @@
-hash: 68bb3ad0fa44570b27f33730af2d30750b62e92d6334f71d53b38d694adb5fa9
-updated: 2017-06-01T00:04:46.608247644+01:00
+hash: 4c04eb54b11019e8ababb9a898fe7e284e28475b3ddba13717aee62ee1074f14
+updated: 2017-06-11T17:35:53.062405144+01:00
 imports:
 - name: github.com/a-h/round
   version: 29d6cc75ad82cb7aee00b8789582c88ddb229e2a
@@ -11,6 +11,8 @@ imports:
   version: 8616e8ee5e20a1704615e6c8d7afcdac06087a67
   subpackages:
   - proto
+- name: github.com/google/uuid
+  version: 064e2069ce9c359c118179501254f67d7d37ba24
 - name: github.com/gorilla/websocket
   version: 3ab3a8b8831546bd18fd182c20687ca853b2bb13
 - name: github.com/hailocab/go-hostpool
@@ -49,7 +51,7 @@ imports:
 - name: github.com/preichenberger/go-coinbase-exchange
   version: bfd2b74f1f0cc9a07e4e543bdbfa7711e0e24f0e
 - name: github.com/Sirupsen/logrus
-  version: 5e5dc898656f695e2a086b8e12559febbfc01562
+  version: ba1b36c82c5e05c4f912a88eab0dcd91a171688f
 - name: github.com/spf13/afero
   version: 9be650865eab0c12963d8753212f4f9c66cdcf12
   subpackages:

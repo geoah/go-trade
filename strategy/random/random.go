@@ -31,15 +31,15 @@ func New(waitChance, buyChance, sellChance float64) (strategy.Strategy, error) {
 	}, nil
 }
 
-// Handle new candle
-func (s *random) Handle(candle *market.Candle) (strategy.Action, error) {
+// HandleCandle new candle
+func (s *random) HandleCandle(candle *market.Candle) (market.Action, error) {
 	r := rand.Float64()
 	if r <= s.buyChance {
-		return strategy.Buy, nil
+		return market.Buy, nil
 	} else if r <= s.buyChance+s.sellChance {
-		return strategy.Sell, nil
+		return market.Sell, nil
 	} else if r <= s.buyChance+s.sellChance+s.waitChance {
-		return strategy.Wait, nil
+		return market.Hold, nil
 	}
-	return strategy.Wait, errors.New("Woa, this should have NOT happened")
+	return market.Hold, errors.New("Woa, this should have NOT happened")
 }

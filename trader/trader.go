@@ -20,8 +20,9 @@ type Trader struct {
 	assetRounding    int
 	currencyRounding int
 
-	lastBuy float64
-	ready   bool
+	lastBuy  float64
+	lastSell float64
+	ready    bool
 
 	Candles []*market.Candle
 	Trades  int
@@ -40,8 +41,36 @@ func New(market market.Market, strategy strategy.Strategy, assetRounding, curren
 	}, nil
 }
 
-// Handle new candle
-func (t *Trader) Handle(candle *market.Candle) error {
+// HandleUpdate -
+func (t *Trader) HandleUpdate(update *market.Update) error {
+	ast, cur, err := t.market.GetBalance()
+	if err != nil {
+		logrus.WithError(err).Warnf("Could not get balance")
+		return nil
+	}
+
+	tlog := logrus.
+		WithField("AST", ast).
+		WithField("CUR", cur).
+		WithField("Size", update.Size).
+		WithField("Price", update.Price)
+
+	switch update.Action {
+	case market.Buy:
+		tlog.Infof("Bought")
+		t.lastBuy = update.Price
+	case market.Sell:
+		tlog.Errorf("Sold")
+		t.lastSell = update.Price
+	case market.Cancel:
+		tlog.Warnf("Canceled")
+	}
+
+	return nil
+}
+
+// HandleCandle new candle
+func (t *Trader) HandleCandle(candle *market.Candle) error {
 	// logrus.WithField("candle", candle).Debug("Handling candle")
 	// ready is a hack to make sure we don't sell insanely low when we start
 	if t.ready == false {
@@ -54,19 +83,19 @@ func (t *Trader) Handle(candle *market.Candle) error {
 	if t.firstPriceSeen == 0.0 {
 		t.firstPriceSeen = candle.Close
 	}
-	action, err := t.strategy.Handle(candle)
+	action, err := t.strategy.HandleCandle(candle)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Strategy could not handle trade")
 	}
 	// TODO random quantity to buy/sell is not clever, move to strategy
 	qnt := 0.0
 	switch action {
-	case strategy.Wait:
+	case market.Hold:
 		logrus.
 			WithField("ACT", "Hold").
 			Debugf("Strategy says")
 		return nil
-	case strategy.Buy:
+	case market.Buy:
 		logrus.
 			WithField("ACT", "Buy").
 			Debugf("Strategy says")
@@ -90,56 +119,31 @@ func (t *Trader) Handle(candle *market.Candle) error {
 			// logrus.Infof("Nil quantity")
 			return nil
 		}
-		// adjust price to appear as a maker
-		// TODO base this on the ema diff?
-		// prc = prc / 1.0009
 		prc = utils.TrimFloat64(prc, t.currencyRounding)
-		// buy assets
-		// logrus.
-		// 	WithField("ACT", "Buy").
-		// 	WithField("PRC", prc).
-		// 	WithField("QNT", qnt).
-		// 	Infof("Trying to")
+		atLeastPct := 1.001
+		if prc >= t.lastSell/atLeastPct {
+			logrus.WithField("last_sell", t.lastSell).
+				WithField("prc", prc).
+				Warnf("Ignoring strategy, I'm not buying, margin too small.")
+			return nil
+		}
 		err = t.market.Buy(qnt, prc)
 		if err != nil {
 			logrus.WithError(err).Warnf("Could not buy assets")
 			return nil
 		}
 		candle.Event = &market.Event{
-			Action: string(strategy.Buy),
+			Action: string(market.Buy),
 		}
-		t.lastBuy = prc
 		t.Trades++
 
-		// log new balance
-		ast, cur, err := t.market.GetBalance()
-		if err != nil {
-			logrus.WithError(err).Warnf("Could not get balance")
-		}
-
-		// initial assets
-		iatl := t.firstAssetBalance + t.firstCurrencyBalance/t.firstPriceSeen
-		// current assets
-		catl := ast + cur/prc
-		logrus.
-			WithField("ACT", "BUY").
-			WithField("PRC", utils.TrimFloat64(prc, 5)).
-			WithField("AST%", utils.TrimFloat64(catl*100/iatl-100, 3)).
-			Infof("Acted")
-
-	case strategy.Sell:
+	case market.Sell:
 		logrus.
 			WithField("ACT", "Sell").
 			Debugf("Strategy says")
 		// act = "SEL"
 		// get market price
 		prc := candle.Close
-		// if t.lastBuy > 0 && t.lastBuy >= prc {
-		// 	logrus.WithField("last_buy", t.lastBuy).
-		// 		WithField("prc", prc).
-		// 		Errorf("DID NOT BUY, Fuck the strategy")
-		// 	return nil
-		// }
 		// max assets we can sell
 		// limit currency a bit
 		// TODO Make configurable
@@ -150,20 +154,18 @@ func (t *Trader) Handle(candle *market.Candle) error {
 			// logrus.Infof("Nil quantity")
 			return nil
 		}
-		// adjust price to appear as a maker
-		// TODO base this on the ema diff?
-		// prc = prc * 1.0009
 		prc = utils.TrimFloat64(prc, t.currencyRounding)
-		// sell assets
-		// logrus.
-		// 	WithField("ACT", "Sell").
-		// 	WithField("PRC", prc).
-		// 	WithField("QNT", qnt).
-		// 	Infof("Trying to")
+		atLeastPct := 1.005
+		if t.lastBuy*atLeastPct >= prc {
+			logrus.WithField("last_buy", t.lastBuy).
+				WithField("prc", prc).
+				Warnf("Ignoring strategy, I'm not selling, margin too small.")
+			return nil
+		}
 		if t.lastBuy >= prc {
 			logrus.WithField("last_buy", t.lastBuy).
 				WithField("prc", prc).
-				Warnf("Ignoring strategy, I'm not selling lower than I bought.")
+				Warnf("Ignoring strategy, I'm not selling, selling price lower than what I bought at.")
 			return nil
 		}
 		err = t.market.Sell(qnt, prc)
@@ -175,34 +177,8 @@ func (t *Trader) Handle(candle *market.Candle) error {
 			return nil
 		}
 		candle.Event = &market.Event{
-			Action: string(strategy.Sell),
+			Action: string(market.Sell),
 		}
-		if t.lastBuy >= prc {
-			logrus.
-				WithField("last_buy", t.lastBuy).
-				WithField("prc", prc).
-				Warnf("WTF, Sold lower than bought...")
-			// return nil
-		}
-
-		// log new balance
-		ast, cur, err := t.market.GetBalance()
-		if err != nil {
-			logrus.WithError(err).Warnf("Could not get balance")
-		}
-
-		// initial assets
-		iatl := t.firstAssetBalance + t.firstCurrencyBalance/t.firstPriceSeen
-		// current assets
-		catl := ast + cur/prc
-
-		// t.lastBuy = 0
-		logrus.
-			WithField("lastBuy", t.lastBuy).
-			WithField("ACT", "SEL").
-			WithField("PRC", utils.TrimFloat64(prc, 5)).
-			WithField("AST%", utils.TrimFloat64(catl*100/iatl-100, 3)).
-			Errorf("Acted")
 		t.Trades++
 	default:
 		logrus.WithField("action", action).Fatalf("Strategy said something weird")

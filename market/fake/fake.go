@@ -23,6 +23,7 @@ type Fake struct {
 	back        time.Duration
 	marketName  string
 	productName string
+	feesPercent float64
 }
 
 func New(pe persistence.Persistence, mrk, prd string, back time.Duration, asset, currency float64) (market.Market, error) {
@@ -34,18 +35,22 @@ func New(pe persistence.Persistence, mrk, prd string, back time.Duration, asset,
 		back:        back,
 		marketName:  mrk,
 		productName: prd,
+		feesPercent: 1.0,
 	}
 	return m, nil
 }
 
-func (m *Fake) Register(handler market.TradeHandler) {
+func (m *Fake) RegisterForTrades(handler market.TradeHandler) {
 	m.handlers = append(m.handlers, handler)
+}
+
+func (m *Fake) RegisterForUpdates(handler market.UpdateHandler) {
 }
 
 func (m *Fake) Buy(quantity, price float64) error {
 	m.Lock()
 	defer m.Unlock()
-	cost := quantity * price
+	cost := quantity * price * m.feesPercent // TODO Check fees
 	if cost > m.currency {
 		return errors.New("Not enough currency")
 	}
@@ -61,7 +66,7 @@ func (m *Fake) Sell(quantity, price float64) error {
 		return errors.New("Not enough assets")
 	}
 	m.asset -= quantity
-	m.currency += quantity * price
+	m.currency += quantity * price / m.feesPercent // TODO Check fees
 	return nil
 }
 
@@ -88,7 +93,7 @@ func (m *Fake) Run() {
 	for _, trade := range trades {
 		for _, h := range m.handlers {
 			if h != nil {
-				h.Handle(trade) // TODO Handle error
+				h.HandleTrade(trade) // TODO Handle error
 			}
 		}
 	}

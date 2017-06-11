@@ -6,7 +6,8 @@ import (
 
 // Market -
 type Market interface {
-	Register(handler TradeHandler)
+	RegisterForTrades(handler TradeHandler)
+	RegisterForUpdates(handler UpdateHandler)
 	GetBalance() (assets float64, currency float64, err error)
 	Buy(quantity, price float64) error
 	Sell(quantity, price float64) error

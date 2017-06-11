@@ -4,13 +4,16 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	logrus "github.com/Sirupsen/logrus"
+	uuid "github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	exchange "github.com/preichenberger/go-coinbase-exchange"
 
@@ -24,12 +27,17 @@ const (
 	Name = "gdax"
 )
 
+var (
+	ErrorOrderRejected = errors.New("Order rejected")
+)
+
 // gdax -
 type gdax struct {
-	product     string
-	handlers    []market.TradeHandler
-	client      *exchange.Client
-	persistence persistence.Persistence
+	product        string
+	handlers       []market.TradeHandler
+	updateHandlers []market.UpdateHandler
+	client         *exchange.Client
+	persistence    persistence.Persistence
 
 	secret     string
 	key        string
@@ -38,6 +46,12 @@ type gdax struct {
 	balanceCacheValid    bool
 	balanceCacheAsset    float64
 	balanceCacheCurrency float64
+
+	profileID string
+	clientOID string
+
+	openOrders     map[string]*exchange.Order
+	openOrdersLock sync.RWMutex
 }
 
 // New gdax market
@@ -56,6 +70,7 @@ func New(persistence persistence.Persistence, product string) (market.Market, er
 		secret:      secret,
 		key:         key,
 		passphrase:  passphrase,
+		openOrders:  map[string]*exchange.Order{},
 	}
 
 	return mrk, nil
@@ -86,18 +101,85 @@ func (m *gdax) Listen() {
 		println("gdax ws sub error", err.Error())
 	}
 
-	message := exchange.Message{}
-	for true {
+	message := Message{}
+	for {
 		if err := wsConn.ReadJSON(&message); err != nil {
 			logrus.WithError(err).Errorf("gdax ws read error")
 			break
 		}
-		if message.Type == "match" {
-			c := &market.Trade{
-				ID:      fmt.Sprintf("%s.%s.%d", Name, m.product, message.TradeId),
+		m.openOrdersLock.Lock()
+		if message.Type == "error" {
+			logrus.WithField("message", message).Errorf("GDAX Error")
+		} else if _, ok := m.openOrders[message.OrderID]; ok {
+			// this is our own order
+			// if the order has been filled publish an update
+			// TODO the type=match is not tested
+			if message.Type == "match" {
+				logrus.
+					WithField("message", message).
+					Warnf("Our order -- MATCHED")
+				act := market.Sell
+				if message.Side == "buy" {
+					act = market.Buy
+				}
+				upd := &market.Update{
+					Action: act,
+					Price:  message.Price,
+					Size:   message.Size,
+					Time:   message.Time.Time(),
+				}
+				// logrus.WithField("update", upd).Warnf("Update on match")
+				// TODO move to channels
+				for _, h := range m.updateHandlers {
+					if h != nil {
+						h.HandleUpdate(upd) // TODO Handle error
+					}
+				}
+			} else if message.Type == "done" {
+				// if the order has been filled, publish an update
+				if message.Reason == "filled" {
+					act := market.Sell
+					if message.Side == "buy" {
+						act = market.Buy
+					}
+					upd := &market.Update{
+						Action: act,
+						Price:  message.Price,
+						Size:   message.Size,
+						Time:   message.Time.Time(),
+					}
+					// TODO move to channels
+					for _, h := range m.updateHandlers {
+						if h != nil {
+							h.HandleUpdate(upd) // TODO Handle error
+						}
+					}
+				} else {
+					// report event
+					upd := &market.Update{
+						Action: market.Cancel,
+						Price:  message.Price,
+						Size:   message.Size,
+						Time:   message.Time.Time(),
+					}
+					// TODO move to channels
+					for _, h := range m.updateHandlers {
+						if h != nil {
+							h.HandleUpdate(upd) // TODO Handle error
+						}
+					}
+				}
+				// and remove from orders
+				delete(m.openOrders, message.OrderID)
+			}
+		} else if message.ClientOID == m.clientOID {
+			// our own orders
+		} else if message.Type == "match" {
+			t := &market.Trade{
+				ID:      fmt.Sprintf("%s.%s.%d", Name, m.product, message.TradeID),
 				Market:  Name,
 				Product: m.product,
-				TradeID: message.TradeId,
+				TradeID: message.TradeID,
 				Price:   message.Price,
 				Size:    message.Size,
 				Time:    message.Time.Time(),
@@ -106,10 +188,11 @@ func (m *gdax) Listen() {
 			// TODO move to channels
 			for _, h := range m.handlers {
 				if h != nil {
-					h.Handle(c) // TODO Handle error
+					h.HandleTrade(t) // TODO Handle error
 				}
 			}
 		}
+		m.openOrdersLock.Unlock()
 	}
 }
 
@@ -121,9 +204,14 @@ func (m *gdax) currency() string {
 	return strings.ToUpper(strings.Split(m.product, "-")[1])
 }
 
-// Notify -
-func (m *gdax) Register(handler market.TradeHandler) {
+// RegisterForTrades -
+func (m *gdax) RegisterForTrades(handler market.TradeHandler) {
 	m.handlers = append(m.handlers, handler)
+}
+
+// RegisterForUpdates -
+func (m *gdax) RegisterForUpdates(handler market.UpdateHandler) {
+	m.updateHandlers = append(m.updateHandlers, handler)
 }
 
 // Buy -
@@ -136,12 +224,25 @@ func (m *gdax) Buy(size, price float64) error {
 		PostOnly:    true, // TODO Maker
 		TimeInForce: "GTT",
 		CancelAfter: "min",
+		ClientOID:   m.clientOID,
 	}
-	_, err := m.client.CreateOrder(order)
+	nord, err := m.client.CreateOrder(order)
 	if err != nil {
 		return err
 	}
-	m.balanceCacheValid = false
+	if nord.Status == "rejected" {
+		return ErrorOrderRejected
+	}
+	// add order to orders
+	m.openOrdersLock.Lock()
+	defer m.openOrdersLock.Unlock()
+	m.openOrders[nord.Id] = &nord
+	// report event
+	logrus.
+		WithField("price", utils.TrimFloat64(order.Price, 2)).
+		WithField("size", utils.TrimFloat64(order.Size, 8)).
+		Infof("Placed buy order")
+	m.balanceCacheValid = false // TODO Remove balance cache
 	return nil
 }
 
@@ -155,12 +256,25 @@ func (m *gdax) Sell(size, price float64) error {
 		PostOnly:    true, // TODO Maker
 		TimeInForce: "GTT",
 		CancelAfter: "min",
+		ClientOID:   m.clientOID,
 	}
-	_, err := m.client.CreateOrder(order)
+	nord, err := m.client.CreateOrder(order)
 	if err != nil {
 		return err
 	}
-	m.balanceCacheValid = false
+	if nord.Status == "rejected" {
+		return ErrorOrderRejected
+	}
+	// add order to orders
+	m.openOrdersLock.Lock()
+	defer m.openOrdersLock.Unlock()
+	m.openOrders[nord.Id] = &nord
+	// report event
+	logrus.
+		WithField("price", utils.TrimFloat64(order.Price, 2)).
+		WithField("size", utils.TrimFloat64(order.Size, 8)).
+		Infof("Placed buy order")
+	m.balanceCacheValid = false // TODO Remove balance cache
 	return nil
 }
 
@@ -192,6 +306,15 @@ func (m *gdax) GetBalance() (assets float64, currency float64, err error) {
 
 // Run -
 func (m *gdax) Run() {
+	// get profile
+	// accs,err:=m.client.GetAccounts()
+	// if err!=nil {
+	// 	logrus.Warnf("Could not get account; will not be subscribing.")
+	// } else {
+	// 	m.profileID=accs[0].
+	// }
+	// new client id
+	m.clientOID = uuid.New().String()
 	for {
 		m.Listen()
 	}

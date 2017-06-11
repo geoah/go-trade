@@ -52,7 +52,7 @@ func (a *Time) isInFutureTick(trade *market.Trade) bool {
 }
 
 // Handle -
-func (a *Time) Handle(trade *market.Trade) error {
+func (a *Time) HandleTrade(trade *market.Trade) error {
 	if a.empty {
 		a.empty = false
 		a.tick(trade)
@@ -111,7 +111,7 @@ func (a *Time) AddTickSubscription(handler gotrade.DOHLCVTickReceiver) {
 
 func (a *Time) notify(candle *market.Candle) {
 	for _, h := range a.handlers {
-		h.Handle(candle) // TODO Handle error
+		h.HandleCandle(candle) // TODO Handle error
 	}
 	dohlcv := TradeToDOHLCV(candle)
 	for _, h := range a.handlersDOHLCV {

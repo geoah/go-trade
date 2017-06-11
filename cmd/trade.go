@@ -50,20 +50,21 @@ func trade(cmd *cobra.Command, args []string) {
 	}
 
 	// setup aggregator
-	// aggregator, err := agr.NewTimeAggregator(1 * time.Minute)
+	// aggregator, err := agr.NewTimeAggregator(30 * time.Second)
 	aggregator, err := agr.NewVolumeAggregator(aggregationVolumeLimit)
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup aggregator")
 	}
 
 	// setup trader
-	trader, err = trd.New(market, strategy, 4, 2) // TODO Get precision from market
+	trader, err = trd.New(market, strategy, 8, 2) // TODO Get precision from market
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup trader")
 	}
 
 	// attach handlers
-	market.Register(aggregator)
+	market.RegisterForTrades(aggregator)
+	market.RegisterForUpdates(trader)
 	aggregator.Register(trader)
 
 	log.

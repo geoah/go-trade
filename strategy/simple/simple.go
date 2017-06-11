@@ -22,7 +22,7 @@ func New(window float64) (strategy.Strategy, error) {
 }
 
 // Handle new candle
-func (s *simple) Handle(candle *market.Candle) (strategy.Action, error) {
+func (s *simple) HandleCandle(candle *market.Candle) (market.Action, error) {
 	// add candle to our ema
 	s.ema.Add(candle.Close)
 
@@ -30,7 +30,7 @@ func (s *simple) Handle(candle *market.Candle) (strategy.Action, error) {
 	candle.Ema = s.ema.Value()
 
 	// set wait as fallback
-	act := strategy.Wait
+	act := market.Hold
 
 	// get the direction of the trend
 	diff := s.lastEma - candle.Ema
@@ -38,10 +38,10 @@ func (s *simple) Handle(candle *market.Candle) (strategy.Action, error) {
 	// if the direction has changed since our last tick
 	if diff > 0 && s.lastEmaDiff < 0 {
 		// from down to up, then buy
-		act = strategy.Buy
+		act = market.Buy
 	} else if diff < 0 && s.lastEmaDiff > 0 {
 		// from up to down, then sell
-		act = strategy.Sell
+		act = market.Sell
 	}
 
 	// store new ema and direction

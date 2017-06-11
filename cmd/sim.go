@@ -59,13 +59,14 @@ func sim(cmd *cobra.Command, args []string) {
 	}
 
 	// setup trader
-	trader, err = trd.New(market, strategy, 4, 2) // TODO Get precision from market
+	trader, err = trd.New(market, strategy, 8, 2) // TODO Get precision from market
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup trader")
 	}
 
 	// attach handlers
-	market.Register(aggregator)
+	market.RegisterForTrades(aggregator)
+	market.RegisterForUpdates(trader)
 	aggregator.Register(trader)
 
 	log.

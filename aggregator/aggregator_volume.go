@@ -43,7 +43,7 @@ func NewVolumeAggregator(volume float64) (Aggregator, error) {
 }
 
 // Handle -
-func (a *Volume) Handle(trade *market.Trade) error {
+func (a *Volume) HandleTrade(trade *market.Trade) error {
 	if a.volumeReset == timeNil {
 		a.volumeReset = trade.Time
 	}
@@ -114,7 +114,7 @@ func (a *Volume) AddTickSubscription(handler gotrade.DOHLCVTickReceiver) {
 
 func (a *Volume) notify(candle *market.Candle) {
 	for _, h := range a.handlers {
-		h.Handle(candle) // TODO Handle error
+		h.HandleCandle(candle) // TODO Handle error
 	}
 	dohlcv := TradeToDOHLCV(candle)
 	for _, h := range a.handlersDOHLCV {

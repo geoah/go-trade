@@ -13,7 +13,7 @@ type Aggregator interface {
 	// Register market.CandleHandler
 	Register(handler market.CandleHandler)
 	// Handle implements market.TradeHandler
-	Handle(trade *market.Trade) error
+	HandleTrade(trade *market.Trade) error
 	// AddTickSubscription is the same as our Notify but for gotrade
 	AddTickSubscription(subscriber gotrade.DOHLCVTickReceiver)
 }

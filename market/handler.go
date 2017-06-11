@@ -8,10 +8,15 @@ type TradeHandlerFunc func(trade *Trade) error
 
 // CandleHandler -
 type CandleHandler interface {
-	Handle(candle *Candle) error
+	HandleCandle(candle *Candle) error
+}
+
+// UpdateHandler -
+type UpdateHandler interface {
+	HandleUpdate(update *Update) error
 }
 
 // TradeHandler -
 type TradeHandler interface {
-	Handle(trade *Trade) error
+	HandleTrade(trade *Trade) error
 }
