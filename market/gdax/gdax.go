@@ -273,7 +273,7 @@ func (m *gdax) Sell(size, price float64) error {
 	logrus.
 		WithField("price", utils.TrimFloat64(order.Price, 2)).
 		WithField("size", utils.TrimFloat64(order.Size, 8)).
-		Infof("Placed buy order")
+		Errorf("Placed sell order")
 	m.balanceCacheValid = false // TODO Remove balance cache
 	return nil
 }

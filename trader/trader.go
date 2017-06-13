@@ -111,12 +111,20 @@ func (t *Trader) HandleCandle(candle *market.Candle) error {
 		// make sure we have enough currency to buy with
 		if utils.TrimFloat64(mas, 5) == 0 {
 			// nevermind
+			logrus.
+				WithField("CUR", cur).
+				WithField("mas", mas).
+				Debugf("Ignoring strategy, cannot buy, not enough money.")
 			return nil
 		}
 		// random quantity of assets to buy
 		qnt = t.quantity(mas)
 		if qnt == 0.0 {
-			// logrus.Infof("Nil quantity")
+			logrus.
+				WithField("CUR", cur).
+				WithField("mas", mas).
+				WithField("qnt", qnt).
+				Debugf("Ignoring strategy, cannot buy, quantity too low.")
 			return nil
 		}
 		prc = utils.TrimFloat64(prc, t.currencyRounding)
@@ -151,7 +159,11 @@ func (t *Trader) HandleCandle(candle *market.Candle) error {
 		mas := ast * 0.99
 		qnt = t.quantity(mas)
 		if qnt == 0.0 {
-			// logrus.Infof("Nil quantity")
+			logrus.
+				WithField("AST", ast).
+				WithField("mas", mas).
+				WithField("qnt", qnt).
+				Debugf("Ignoring strategy, cannot sell, quantity too low.")
 			return nil
 		}
 		prc = utils.TrimFloat64(prc, t.currencyRounding)
