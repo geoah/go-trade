@@ -75,7 +75,8 @@ func (t *Trader) HandleCandle(candle *market.Candle) error {
 	// ready is a hack to make sure we don't sell insanely low when we start
 	if t.ready == false {
 		t.ready = true
-		t.lastBuy = candle.Close
+		t.lastBuy = candle.High
+		t.lastSell = candle.Low
 	}
 	// TODO Move this and stream it
 	t.Candles = append(t.Candles, candle)
