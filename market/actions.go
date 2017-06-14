@@ -5,11 +5,11 @@ type Action string
 
 const (
 	// Hold -
-	Hold Action = "HOLD"
+	Hold Action = "HLD"
 	// Buy -
 	Buy Action = "BUY"
 	// Sell -
-	Sell Action = "SELL"
+	Sell Action = "SLL"
 	// Cancel -
 	Cancel Action = "CANCEL"
 )

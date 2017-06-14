@@ -63,14 +63,15 @@ func New(persistence persistence.Persistence, product string) (market.Market, er
 	// TODO Validate product for market
 
 	mrk := &gdax{
-		product:     strings.ToUpper(product),
-		handlers:    []market.TradeHandler{},
-		client:      exchange.NewClient(secret, key, passphrase),
-		persistence: persistence,
-		secret:      secret,
-		key:         key,
-		passphrase:  passphrase,
-		openOrders:  map[string]*exchange.Order{},
+		product:        strings.ToUpper(product),
+		handlers:       []market.TradeHandler{},
+		updateHandlers: []market.UpdateHandler{},
+		client:         exchange.NewClient(secret, key, passphrase),
+		persistence:    persistence,
+		secret:         secret,
+		key:            key,
+		passphrase:     passphrase,
+		openOrders:     map[string]*exchange.Order{},
 	}
 
 	return mrk, nil
@@ -108,9 +109,12 @@ func (m *gdax) Listen() {
 			break
 		}
 		m.openOrdersLock.Lock()
+		_, exists := m.openOrders[message.OrderID]
+		m.openOrdersLock.Unlock()
+
 		if message.Type == "error" {
 			logrus.WithField("message", message).Errorf("GDAX Error")
-		} else if _, ok := m.openOrders[message.OrderID]; ok {
+		} else if exists {
 			// this is our own order
 			// if the order has been filled publish an update
 			// TODO the type=match is not tested
@@ -192,7 +196,6 @@ func (m *gdax) Listen() {
 				}
 			}
 		}
-		m.openOrdersLock.Unlock()
 	}
 }
 

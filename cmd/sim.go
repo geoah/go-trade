@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"time"
 
-	"github.com/spf13/cobra"
+	logrus "github.com/Sirupsen/logrus"
+	cobra "github.com/spf13/cobra"
 
 	agr "github.com/geoah/go-trade/aggregator"
-	mrk "github.com/geoah/go-trade/market"
 	fake "github.com/geoah/go-trade/market/fake"
 	gdax "github.com/geoah/go-trade/market/gdax"
 	simple "github.com/geoah/go-trade/strategy/simple"
@@ -41,12 +39,20 @@ func sim(cmd *cobra.Command, args []string) {
 	// setup strategy
 	strategy, err = simple.New(emaWindow)
 	if err != nil {
-		log.WithError(err).Fatalf("Could not setup strategy")
+		logrus.WithError(err).Fatalf("Could not setup strategy")
 	}
 
 	// setup fake market
-	market, err = fake.New(persistence, gdax.Name, productName, simLast, simAssetCapital, simCurrencyCapital)
-	log.
+	start, err := time.Parse(time.RFC3339, "2017-06-08T00:00:00+00:00")
+	if err != nil {
+		logrus.WithError(err).Fatalf("Could not parse start time")
+	}
+	end, err := time.Parse(time.RFC3339, "2017-06-12T00:00:00+00:00")
+	if err != nil {
+		logrus.WithError(err).Fatalf("Could not parse end time")
+	}
+	market, err = fake.New(persistence, gdax.Name, productName, start, end, simAssetCapital, simCurrencyCapital)
+	logrus.
 		WithField("balance-assets", simAssetCapital).
 		WithField("balance-currency", simCurrencyCapital).
 		Info("Started market")
@@ -55,13 +61,13 @@ func sim(cmd *cobra.Command, args []string) {
 	// aggregator, err := agr.NewTimeAggregator(1 * time.Minute)
 	aggregator, err := agr.NewVolumeAggregator(aggregationVolumeLimit)
 	if err != nil {
-		log.WithError(err).Fatalf("Could not setup aggregator")
+		logrus.WithError(err).Fatalf("Could not setup aggregator")
 	}
 
 	// setup trader
-	trader, err = trd.New(market, strategy, 8, 2) // TODO Get precision from market
+	trader, err = trd.New(market, strategy, 8, 2, 0.01) // TODO Get precision from market
 	if err != nil {
-		log.WithError(err).Fatalf("Could not setup trader")
+		logrus.WithError(err).Fatalf("Could not setup trader")
 	}
 
 	// attach handlers
@@ -69,7 +75,7 @@ func sim(cmd *cobra.Command, args []string) {
 	market.RegisterForUpdates(trader)
 	aggregator.Register(trader)
 
-	log.
+	logrus.
 		WithField("ema-window", emaWindow).
 		WithField("aggregation-volume-limit", aggregationVolumeLimit).
 		Infof("Started trading")
@@ -78,19 +84,19 @@ func sim(cmd *cobra.Command, args []string) {
 	market.Run()
 
 	// print data
-	now := time.Now()
-	data := []*mrk.Candle{}
-	for i, c := range trader.Candles {
-		if c.Ema > 0 && i > 10 {
-			c.Time = now
-			now = now.Add(5 * time.Minute)
-			data = append(data, c)
-		}
-	}
-	bs, _ := json.Marshal(data)
-	ioutil.WriteFile("data-sim.json", bs, 0644)
+	// now := time.Now()
+	// data := []*mrk.Candle{}
+	// for _, c := range trader.Candles {
+	// 	// if c.Ema > 0 && i > 10 {
+	// 	// c.Time = now
+	// 	// now = now.Add(5 * time.Minute)
+	// 	data = append(data, c)
+	// 	// }
+	// }
+	// bs, _ := json.Marshal(data)
+	// ioutil.WriteFile("data-sim.json", bs, 0644)
 
-	log.Warnf("Completed simulation with %d actions", trader.Trades)
+	logrus.Warnf("Completed simulation with %d actions", trader.Trades)
 
 	// print data
 	// data := make([][]interface{}, len(trader.Candles))

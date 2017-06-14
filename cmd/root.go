@@ -18,7 +18,6 @@ import (
 )
 
 var (
-	log     *logrus.Logger
 	cfgFile string
 
 	marketName             string
@@ -110,34 +109,32 @@ func setup() {
 	}
 	logrus.SetLevel(level)
 
-	log = logrus.New()
-
 	rs, err := r.Connect(r.ConnectOpts{
 		Address: "localhost",
 	})
 	if err != nil {
-		log.WithError(err).Fatalf("Could not connect to rethinkdb")
+		logrus.WithError(err).Fatalf("Could not connect to rethinkdb")
 	}
 
 	rDB := "trade"
 
 	// TODO Create db, tables, and indexes only if they don't exist
 	if _, err := r.DBCreate(rDB).RunWrite(rs); err != nil {
-		// log.WithError(err).Fatalf("Could not create rethinkdb database")
+		// logrus.WithError(err).Fatalf("Could not create rethinkdb database")
 	}
 	if err := r.DB(rDB).TableCreate("trades").Exec(rs); err != nil {
-		// log.WithError(err).Fatalf("Could not create rethinkdb table")
+		// logrus.WithError(err).Fatalf("Could not create rethinkdb table")
 	}
 	if err := r.DB(rDB).Table("trades").IndexCreate("time").Exec(rs); err != nil {
-		// log.WithError(err).Fatalf("Could not create rethinkdb index")
+		// logrus.WithError(err).Fatalf("Could not create rethinkdb index")
 	}
 	if err := r.DB(rDB).Table("trades").IndexWait().Exec(rs); err != nil {
-		log.WithError(err).Fatalf("Could not wait for indexes")
+		logrus.WithError(err).Fatalf("Could not wait for indexes")
 	}
 
 	persistence, err = per.NewRethinkDB(rs, rDB)
 	if err != nil {
-		log.WithError(err).Fatalf("Could not create rethinkdb persistence")
+		logrus.WithError(err).Fatalf("Could not create rethinkdb persistence")
 	}
 
 }

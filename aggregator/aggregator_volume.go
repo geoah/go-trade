@@ -34,8 +34,8 @@ type Volume struct {
 func NewVolumeAggregator(volume float64) (Aggregator, error) {
 	agg := &Volume{
 		volumeLimit: volume,
-		tradesMin:   1, // TODO Make configurable
-		tradesMax:   5, // TODO Make configurable
+		tradesMin:   1,  // TODO Make configurable
+		tradesMax:   15, // TODO Make configurable
 		volumeReset: timeNil,
 		handlers:    []market.CandleHandler{},
 	}
