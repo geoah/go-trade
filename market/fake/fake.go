@@ -8,6 +8,8 @@ import (
 
 	market "github.com/geoah/go-trade/market"
 	persistence "github.com/geoah/go-trade/persistence"
+	"github.com/geoah/go-trade/utils"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -50,6 +52,10 @@ func (m *Fake) RegisterForUpdates(handler market.UpdateHandler) {
 func (m *Fake) Buy(quantity, price float64) error {
 	m.Lock()
 	defer m.Unlock()
+	logrus.
+		WithField("price", utils.TrimFloat64(price, 2)).
+		WithField("size", utils.TrimFloat64(quantity, 8)).
+		Infof("Placed buy order")
 	cost := quantity * price * m.feesPercent // TODO Check fees
 	if cost > m.currency {
 		return errors.New("Not enough currency")
@@ -62,6 +68,10 @@ func (m *Fake) Buy(quantity, price float64) error {
 func (m *Fake) Sell(quantity, price float64) error {
 	m.Lock()
 	defer m.Unlock()
+	logrus.
+		WithField("price", utils.TrimFloat64(price, 2)).
+		WithField("size", utils.TrimFloat64(quantity, 8)).
+		Infof("Placed sell order")
 	if quantity > m.asset {
 		return errors.New("Not enough assets")
 	}

@@ -13,16 +13,8 @@ type Trader struct {
 	strategy strategy.Strategy
 	market   market.Market
 
-	firstPriceSeen       float64
-	firstAssetBalance    float64
-	firstCurrencyBalance float64
-
 	assetRounding    int
 	currencyRounding int
-
-	lastBuy  float64
-	lastSell float64
-	ready    bool
 
 	Candles []*market.Candle
 	Trades  int
@@ -30,14 +22,11 @@ type Trader struct {
 
 // New trader
 func New(market market.Market, strategy strategy.Strategy, assetRounding, currencyRounding int) (*Trader, error) {
-	ast, cur, _ := market.GetBalance()
 	return &Trader{
-		strategy:             strategy,
-		market:               market,
-		firstAssetBalance:    ast,
-		firstCurrencyBalance: cur,
-		assetRounding:        assetRounding,
-		currencyRounding:     currencyRounding,
+		strategy:         strategy,
+		market:           market,
+		assetRounding:    assetRounding,
+		currencyRounding: currencyRounding,
 	}, nil
 }
 
@@ -58,10 +47,8 @@ func (t *Trader) HandleUpdate(update *market.Update) error {
 	switch update.Action {
 	case market.Buy:
 		tlog.Infof("Bought")
-		t.lastBuy = update.Price
 	case market.Sell:
 		tlog.Errorf("Sold")
-		t.lastSell = update.Price
 	case market.Cancel:
 		tlog.Warnf("Canceled")
 	}
@@ -71,22 +58,14 @@ func (t *Trader) HandleUpdate(update *market.Update) error {
 
 // HandleCandle new candle
 func (t *Trader) HandleCandle(candle *market.Candle) error {
-	// logrus.WithField("candle", candle).Debug("Handling candle")
-	// ready is a hack to make sure we don't sell insanely low when we start
-	if t.ready == false {
-		t.ready = true
-		t.lastBuy = candle.Close
-	}
+	logrus.WithField("candle", candle).Debug("Handling candle")
 	// TODO Move this and stream it
 	t.Candles = append(t.Candles, candle)
-	// TODO Lock simple? Not sure what for
-	if t.firstPriceSeen == 0.0 {
-		t.firstPriceSeen = candle.Close
-	}
 	action, err := t.strategy.HandleCandle(candle)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Strategy could not handle trade")
 	}
+	logrus.Debugf("Strategy says %s", action)
 	// TODO random quantity to buy/sell is not clever, move to strategy
 	qnt := 0.0
 	switch action {
@@ -120,13 +99,6 @@ func (t *Trader) HandleCandle(candle *market.Candle) error {
 			return nil
 		}
 		prc = utils.TrimFloat64(prc, t.currencyRounding)
-		atLeastPct := 1.001
-		if prc >= t.lastSell/atLeastPct {
-			logrus.WithField("last_sell", t.lastSell).
-				WithField("prc", prc).
-				Warnf("Ignoring strategy, I'm not buying, margin too small.")
-			return nil
-		}
 		err = t.market.Buy(qnt, prc)
 		if err != nil {
 			logrus.WithError(err).Warnf("Could not buy assets")
@@ -155,19 +127,6 @@ func (t *Trader) HandleCandle(candle *market.Candle) error {
 			return nil
 		}
 		prc = utils.TrimFloat64(prc, t.currencyRounding)
-		atLeastPct := 1.005
-		if t.lastBuy*atLeastPct >= prc {
-			logrus.WithField("last_buy", t.lastBuy).
-				WithField("prc", prc).
-				Warnf("Ignoring strategy, I'm not selling, margin too small.")
-			return nil
-		}
-		if t.lastBuy >= prc {
-			logrus.WithField("last_buy", t.lastBuy).
-				WithField("prc", prc).
-				Warnf("Ignoring strategy, I'm not selling, selling price lower than what I bought at.")
-			return nil
-		}
 		err = t.market.Sell(qnt, prc)
 		if err != nil {
 			logrus.

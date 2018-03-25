@@ -52,8 +52,8 @@ func sim(cmd *cobra.Command, args []string) {
 		Info("Started market")
 
 	// setup aggregator
-	// aggregator, err := agr.NewTimeAggregator(1 * time.Minute)
-	aggregator, err := agr.NewVolumeAggregator(aggregationVolumeLimit)
+	aggregator, err := agr.NewTimeAggregator(15 * time.Minute)
+	// aggregator, err := agr.NewVolumeAggregator(aggregationVolumeLimit)
 	if err != nil {
 		log.WithError(err).Fatalf("Could not setup aggregator")
 	}
@@ -71,7 +71,7 @@ func sim(cmd *cobra.Command, args []string) {
 
 	log.
 		WithField("ema-window", emaWindow).
-		WithField("aggregation-volume-limit", aggregationVolumeLimit).
+		// WithField("aggregation-volume-limit", aggregationVolumeLimit).
 		Infof("Started trading")
 
 	// start market

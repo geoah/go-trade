@@ -61,7 +61,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "log level [debug/info/warn/error")
 
 	RootCmd.PersistentFlags().StringVar(&productName, "product", "BTC-USD", "product name")
-	RootCmd.PersistentFlags().Float64Var(&emaWindow, "ema-window", 100, "EMA window")
+	RootCmd.PersistentFlags().Float64Var(&emaWindow, "ema-window", 3, "EMA window")
 	RootCmd.PersistentFlags().Float64Var(&aggregationVolumeLimit, "aggregation-volume", 0.5, "Volume aggregation")
 
 	// Cobra also supports local flags, which will only run
