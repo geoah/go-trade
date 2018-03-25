@@ -345,6 +345,9 @@ func (m *gdax) Backfill(end time.Time) error {
 				return nil
 			}
 			fmt.Printf("Saved %d trades, %0.2f hours left.\n", total, lt.Time.Sub(end).Hours())
+			time.Sleep(time.Millisecond * 300)
+		} else {
+			fmt.Println("Error getting next page: err", err)
 		}
 	}
 	return nil
