@@ -1,7 +1,7 @@
 package trader
 
 import (
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	market "github.com/geoah/go-trade/market"
 	strategy "github.com/geoah/go-trade/strategy"

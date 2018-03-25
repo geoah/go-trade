@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	logrus "github.com/Sirupsen/logrus"
 	homedir "github.com/mitchellh/go-homedir"
+	logrus "github.com/sirupsen/logrus"
 	cobra "github.com/spf13/cobra"
 	viper "github.com/spf13/viper"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"

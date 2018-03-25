@@ -12,10 +12,10 @@ import (
 	"sync"
 	"time"
 
-	logrus "github.com/Sirupsen/logrus"
 	uuid "github.com/google/uuid"
 	ws "github.com/gorilla/websocket"
 	exchange "github.com/preichenberger/go-coinbase-exchange"
+	logrus "github.com/sirupsen/logrus"
 
 	market "github.com/geoah/go-trade/market"
 	persistence "github.com/geoah/go-trade/persistence"

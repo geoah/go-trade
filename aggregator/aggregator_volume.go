@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/thetruetrade/gotrade"
 
 	market "github.com/geoah/go-trade/market"
