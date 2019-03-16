@@ -1,5 +1,11 @@
 # go-trade
 
+## WARNING: DO NOT USE.
+
+I would really suggest NOT using this for any kind of actual trading.
+Even if the simulation tells you it will be profitable, it will not be.
+The strategy was designed as a hack for relatively high volume and a bit or randomness, but it's too slow for it to actually be useful.
+
 ## Setup your env
 
 ### GDAX
